@@ -92,6 +92,11 @@ def delete_todo(todo_id: int):
     todo = [t for t in todo if t["id"] != todo_id]
     return None
 
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
+ 
+ 
+@app.get("/")
+def serve_ui():
+    return FileResponse("static/index.html")
 
 
