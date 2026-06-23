@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>todos.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0D1117;
+      --surface:   #161B22;
+      --border:    #21262D;
+      --indigo:    #6E56CF;
+      --indigo-dim:#3D2E8A;
+      --emerald:   #2EA043;
+      --amber:     #D29922;
+      --rose:      #DA3633;
+      --text:      #E6EDF3;
+      --muted:     #8B949E;
+      --low:       #2EA043;
+      --medium:    #D29922;
+      --high:      #DA3633;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    header h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+
+    header h1 span { color: var(--indigo); }
+
+    #count-badge {
+      margin-left: auto;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--indigo-dim);
+      color: #c4b5fd;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar (form) ── */
+    aside {
+      width: 300px;
+      flex-shrink: 0;
+      padding: 24px 20px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    .sidebar-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+
+    .field label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+      resize: none;
+    }
+
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus {
+      border-color: var(--indigo);
+    }
+
+    .field select option { background: var(--surface); }
+
+    #btn-add {
+      width: 100%;
+      padding: 10px;
+      background: var(--indigo);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    #btn-add:hover { background: #7c68d4; }
+    #btn-add:active { transform: scale(0.98); }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Edit panel inside sidebar */
+    #edit-panel {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #edit-panel.open { display: flex; }
+
+    .edit-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #btn-cancel-edit {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+
+    #btn-cancel-edit:hover { color: var(--text); }
+
+    #btn-save-edit {
+      width: 100%;
+      padding: 10px;
+      background: var(--emerald);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #btn-save-edit:hover { background: #3aaa50; }
+
+    /* ── Main task list ── */
+    main {
+      flex: 1;
+      padding: 24px 28px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .list-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .list-header h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* Filter tabs */
+    .filters {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .filter-btn {
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn.active,
+    .filter-btn:hover {
+      border-color: var(--indigo);
+      color: var(--text);
+      background: var(--indigo-dim);
+    }
+
+    /* ── Task card ── */
+    #todo-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .todo-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--indigo);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: border-color 0.2s, opacity 0.2s;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .todo-card.done {
+      border-left-color: var(--emerald);
+      opacity: 0.6;
+    }
+
+    .todo-card[data-priority="high"]   { border-left-color: var(--high); }
+    .todo-card[data-priority="medium"] { border-left-color: var(--medium); }
+    .todo-card[data-priority="low"]    { border-left-color: var(--low); }
+    .todo-card.done { border-left-color: var(--emerald) !important; }
+
+    /* Checkbox */
+    .todo-check {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      background: none;
+    }
+
+    .todo-card.done .todo-check {
+      background: var(--emerald);
+      border-color: var(--emerald);
+    }
+
+    .todo-check::after {
+      content: '';
+      display: none;
+      width: 5px;
+      height: 9px;
+      border: 2px solid #fff;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg) translateY(-1px);
+    }
+
+    .todo-card.done .todo-check::after { display: block; }
+
+    /* Content */
+    .todo-content { flex: 1; min-width: 0; }
+
+    .todo-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+      word-break: break-word;
+      transition: all 0.2s;
+    }
+
+    .todo-card.done .todo-title {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .todo-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      word-break: break-word;
+      margin-bottom: 6px;
+    }
+
+    .todo-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .priority-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    .priority-tag.high   { background: #3a1a1a; color: #f87171; }
+    .priority-tag.medium { background: #2d2210; color: #fbbf24; }
+    .priority-tag.low    { background: #0d2218; color: #4ade80; }
+
+    .todo-id {
+      font-size: 0.65rem;
+      color: var(--border);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    /* Actions */
+    .todo-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .action-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 5px;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .action-btn:hover { border-color: var(--indigo); color: var(--text); }
+    .action-btn.del:hover { border-color: var(--rose); color: var(--rose); }
+
+    /* ── Empty state ── */
+    #empty {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 60px 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    #empty .empty-icon {
+      font-size: 2.5rem;
+      opacity: 0.4;
+    }
+
+    #empty p {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--indigo);
+      color: var(--text);
+      font-size: 0.8rem;
+      padding: 10px 16px;
+      border-radius: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      font-family: 'Space Grotesk', sans-serif;
+      z-index: 999;
+    }
+
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>todos<span>.</span></h1>
+    <span id="count-badge">0 tasks</span>
+  </header>
+
+  <div class="layout">
+
+    <!-- Sidebar: Add form + Edit panel -->
+    <aside>
+      <span class="sidebar-label">New task</span>
+
+      <div class="field">
+        <label for="inp-title">Title</label>
+        <input id="inp-title" type="text" placeholder="What needs doing?" />
+      </div>
+
+      <div class="field">
+        <label for="inp-desc">Description</label>
+        <textarea id="inp-desc" rows="3" placeholder="Optional details…"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="inp-priority">Priority</label>
+        <select id="inp-priority">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+
+      <button id="btn-add">Add task</button>
+
+      <hr class="divider" />
+
+      <!-- Edit panel -->
+      <div id="edit-panel">
+        <div class="edit-header">
+          <span class="sidebar-label">Edit task</span>
+          <button id="btn-cancel-edit" title="Cancel">✕</button>
+        </div>
+
+        <div class="field">
+          <label for="edit-title">Title</label>
+          <input id="edit-title" type="text" />
+        </div>
+
+        <div class="field">
+          <label for="edit-desc">Description</label>
+          <textarea id="edit-desc" rows="3"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="edit-priority">Priority</label>
+          <select id="edit-priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+
+        <button id="btn-save-edit">Save changes</button>
+      </div>
+    </aside>
+
+    <!-- Main list -->
+    <main>
+      <div class="list-header">
+        <h2>All tasks</h2>
+        <div class="filters">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="pending">Pending</button>
+          <button class="filter-btn" data-filter="done">Done</button>
+        </div>
+      </div>
+
+      <div id="empty">
+        <div class="empty-icon">◻</div>
+        <p>No tasks yet.<br/>Add one on the left.</p>
+      </div>
+
+      <div id="todo-list"></div>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = '/todo';
+    let todos = [];
+    let activeFilter = 'all';
+    let editingId = null;
+
+    // ── API helpers ──────────────────────────────────────────────────────────
+    const api = {
+      getAll:  ()         => fetch(API).then(r => r.json()),
+      post:    (body)     => fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r => r.json()),
+      patch:   (id, body) => fetch(`${API}/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r => r.json()),
+      put:     (id, body) => fetch(`${API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r => r.json()),
+      delete:  (id)       => fetch(`${API}/${id}`, { method:'DELETE' }),
+    };
+
+    // ── Toast ────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    function render() {
+      const list = document.getElementById('todo-list');
+      const empty = document.getElementById('empty');
+      const badge = document.getElementById('count-badge');
+
+      let visible = todos;
+      if (activeFilter === 'pending') visible = todos.filter(t => !t.completed);
+      if (activeFilter === 'done')    visible = todos.filter(t => t.completed);
+
+      badge.textContent = `${todos.length} task${todos.length !== 1 ? 's' : ''}`;
+      list.innerHTML = '';
+
+      if (visible.length === 0) {
+        empty.style.display = 'flex';
+        return;
+      }
+      empty.style.display = 'none';
+
+      visible.forEach(t => {
+        const card = document.createElement('div');
+        card.className = `todo-card${t.completed ? ' done' : ''}`;
+        card.dataset.priority = t.priority;
+        card.dataset.id = t.id;
+
+        card.innerHTML = `
+          <div class="todo-check" data-id="${t.id}" title="Toggle done"></div>
+          <div class="todo-content">
+            <div class="todo-title">${escHtml(t.title)}</div>
+            ${t.description ? `<div class="todo-desc">${escHtml(t.description)}</div>` : ''}
+            <div class="todo-meta">
+              <span class="priority-tag ${t.priority}">${t.priority}</span>
+              <span class="todo-id">#${t.id}</span>
+            </div>
+          </div>
+          <div class="todo-actions">
+            <button class="action-btn edit-btn" data-id="${t.id}" title="Edit">✎</button>
+            <button class="action-btn del" data-id="${t.id}" title="Delete">✕</button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Load ─────────────────────────────────────────────────────────────────
+    async function load() {
+      todos = await api.getAll();
+      render();
+    }
+
+    // ── Add task (POST) ───────────────────────────────────────────────────────
+    document.getElementById('btn-add').addEventListener('click', async () => {
+      const title = document.getElementById('inp-title').value.trim();
+      if (!title) { toast('Title is required.'); return; }
+      const body = {
+        title,
+        description: document.getElementById('inp-desc').value.trim(),
+        priority:    document.getElementById('inp-priority').value,
+      };
+      const created = await api.post(body);
+      if (created.detail) {
+        toast(created.detail);
+        return;
+      }
+      todos.unshift(created);
+      render();
+      document.getElementById('inp-title').value = '';
+      document.getElementById('inp-desc').value = '';
+      document.getElementById('inp-priority').value = 'medium';
+      toast('Task added.');
+    });
+
+    // ── Toggle complete (PATCH) ───────────────────────────────────────────────
+    document.getElementById('todo-list').addEventListener('click', async e => {
+      // Checkbox
+      if (e.target.classList.contains('todo-check')) {
+        const id = +e.target.dataset.id;
+        const todo = todos.find(t => t.id === id);
+        const updated = await api.patch(id, { completed: !todo.completed });
+        if (updated.detail) {
+          toast(updated.detail);
+          return;
+        }
+        Object.assign(todo, updated);
+        render();
+        toast(updated.completed ? 'Marked done.' : 'Marked pending.');
+        return;
+      }
+
+      // Edit button
+      if (e.target.classList.contains('edit-btn')) {
+        const id = +e.target.dataset.id;
+        openEdit(id);
+        return;
+      }
+
+      // Delete button (DELETE)
+      if (e.target.classList.contains('del')) {
+        const id = +e.target.dataset.id;
+        await api.delete(id);
+        todos = todos.filter(t => t.id !== id);
+        if (editingId === id) closeEdit();
+        render();
+        toast('Task deleted.');
+      }
+    });
+
+    // ── Edit (PUT) ────────────────────────────────────────────────────────────
+    function openEdit(id) {
+      const todo = todos.find(t => t.id === id);
+      if (!todo) return;
+      editingId = id;
+      document.getElementById('edit-title').value = todo.title;
+      document.getElementById('edit-desc').value = todo.description || '';
+      document.getElementById('edit-priority').value = todo.priority;
+      document.getElementById('edit-panel').classList.add('open');
+    }
+
+    function closeEdit() {
+      editingId = null;
+      document.getElementById('edit-panel').classList.remove('open');
+    }
+
+    document.getElementById('btn-cancel-edit').addEventListener('click', closeEdit);
+
+    document.getElementById('btn-save-edit').addEventListener('click', async () => {
+      if (!editingId) return;
+      const todo = todos.find(t => t.id === editingId);
+      const body = {
+        title:       document.getElementById('edit-title').value.trim(),
+        description: document.getElementById('edit-desc').value.trim(),
+        completed:   todo.completed,
+        priority:    document.getElementById('edit-priority').value,
+      };
+      if (!body.title) { toast('Title is required.'); return; }
+      // PUT — full replace
+      const updated = await api.put(editingId, body);
+      if (updated.detail) {
+        toast(updated.detail);
+        return;
+      }
+      Object.assign(todo, updated);
+      render();
+      closeEdit();
+      toast('Task updated.');
+    });
+
+    // ── Filters ───────────────────────────────────────────────────────────────
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    // ── Enter key on title ────────────────────────────────────────────────────
+    document.getElementById('inp-title').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-add').click();
+    });
+
+    load();
+  </script>
+</body>
+</html>
