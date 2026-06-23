@@ -46,6 +46,10 @@ def get_todo_by_id(todo_id: int):
 
 @app.post("/todo", status_code = 201)
 def create_todo(body: TodoCreate):
+    find_title = next((t for t in todo if t["title"] == body.title), None)
+    if find_title is not None:
+        raise HTTPException(status_code = 409, detail = "duplicate title")
+
     task = {
         "id": next_id(),
         "title": body.title,
@@ -54,11 +58,7 @@ def create_todo(body: TodoCreate):
         "completed": False,
         "created_at": int(time.time()),
     }
-    find_title = next((t for t in todo if t["title"] == body.title), None)
-    if find_title is None:
-        todo.append(task)
-    else:
-        raise HTTPException(status_code = 409, detail = "duplicate title")
+    todo.append(task)
     return task
 
 @app.put("/todo/{todo_id}")
