@@ -1,13 +1,39 @@
-from fastapi import FastAPI, HTTPException
+import psycopg2
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
+from psycopg2 import pool
+from psycopg2.extras import RealDictCursor
+import os
+from dotenv import load_dotenv
 import time
 
-app = FastAPI()
 
-todo = []
+load_dotenv()
+
+db_pool = psycopg2.pool.SimpleConnectionPool(
+    1, 10,
+    user=os.environ.get("DB_USER"),
+    password=os.environ.get("DB_PASSWORD"),
+    host=os.environ.get("DB_HOST", "localhost"),
+    database=os.environ.get("DB_NAME", "todo-app")
+)
+
+def get_db():
+    conn = db_pool.getconn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            yield cursor
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        db_pool.putconn(conn)
+
+app = FastAPI()
 _id_counter = 1
 
 def next_id():
@@ -34,69 +60,102 @@ class TodoReplace(BaseModel):
     completed: Optional[bool] = False
 
 @app.get("/todo")
-def get_all():
-    return todo
+def get_all(cursor = Depends(get_db)):
+    cursor.execute("SELECT * FROM todos ORDER BY id")
+    return cursor.fetchall()
 
 @app.get("/todo/{todo_id}")
-def get_todo_by_id(todo_id: int):
-    task = next((t for t in todo if t["id"] == todo_id ), None)
+def get_todo_by_id(todo_id: int, cursor = Depends(get_db)):
+    cursor.execute("SELECT * FROM todos WHERE id = %s;", (todo_id,))
+    task = cursor.fetchone()
     if task is None:
         raise HTTPException(status_code = 404, detail = "todo not found")
     return task
 
 @app.post("/todo", status_code = 201)
-def create_todo(body: TodoCreate):
-    find_title = next((t for t in todo if t["title"] == body.title), None)
+def create_todo(body: TodoCreate, cursor = Depends(get_db)):
+    cursor.execute("SELECT id FROM todos WHERE title = %s;", (body.title,))
+    find_title = cursor.fetchone()
     if find_title is not None:
         raise HTTPException(status_code = 409, detail = "duplicate title")
 
-    task = {
-        "id": next_id(),
-        "title": body.title,
-        "description": body.description,
-        "priority": body.priority,
-        "completed": False,
-        "created_at": int(time.time()),
-    }
-    todo.append(task)
+    post_query = """INSERT INTO todos (title, description, priority, created_at, completed) VALUES (%s, %s, %s, %s, %s) RETURNING *;"""
+    cursor.execute(post_query, (
+        body.title,
+        body.description,
+        body.priority,
+        time.time(),
+        False
+    ))
+    task = cursor.fetchone()
     return task
 
 @app.put("/todo/{todo_id}")
-def replace_todo(todo_id: int, body: TodoReplace):
-    task = next((t for t in todo if t["id"] == todo_id), None)
+def replace_todo(todo_id: int, body: TodoReplace, cursor = Depends(get_db)):
+    cursor.execute("SELECT * FROM todos WHERE id = %s;", (todo_id,))
+    task = cursor.fetchone()
     if task is None:
         raise HTTPException(status_code = 404, detail = "todo not found")
     if body.title is not None:
-        if any(t["title"] == body.title and t["id"] != todo_id for t in todo):
-            raise HTTPException(status_code=409, detail="duplicate title")
-    task["title"] = body.title
-    task["description"] = body.description
-    task["priority"] = body.priority
-    task["completed"] = body.completed
-    return task
+        cursor.execute("SELECT id from todos where title = %s and id != %s;", (body.title, todo_id))
+        find_title = cursor.fetchone()
+        if find_title:
+            raise HTTPException(status_code = 409, detail = "duplicate title")
+    
+    put_query = """UPDATE todos SET title = %s, description = %s, priority = %s, completed = %s WHERE id = %s RETURNING *;"""
+
+    cursor.execute(put_query, (
+        body.title,
+        body.description,
+        body.priority,
+        body.completed,
+        todo_id
+    ))
+
+    return cursor.fetchone()
 
 @app.patch("/todo/{todo_id}")
-def patch_todo(todo_id: int, body: TodoUpdate):
-    task = next((t for t in todo if t["id"] == todo_id), None)
+def patch_todo(todo_id: int, body: TodoUpdate, cursor = Depends(get_db)):
+    cursor.execute("SELECT * FROM todos WHERE id = %s;", (todo_id,))
+    task = cursor.fetchone()
     if task is None:
         raise HTTPException(status_code = 404, detail= "todo not found")
     if body.title is not None:
-        task["title"] = body.title
+        cursor.execute("SELECT id from todos where title = %s and id != %s;", (body.title, todo_id))
+        find_title = cursor.fetchone()
+        if find_title:
+            raise HTTPException(status_code = 409, detail = "duplicate tile")
+
+    updates = []
+    values = []
+
+    if body.title is not None:
+        updates.append("title = %s")
+        values.append(body.title)
     if body.description is not None:
-        task["description"] = body.description
+        updates.append("description = %s")
+        values.append(body.description)
     if body.priority is not None:
-        task["priority"] = body.priority
+        updates.append("priority = %s")
+        values.append(body.priority)
     if body.completed is not None:
-        task["completed"] = body.completed
-    return task
+        updates.append("completed = %s")
+        values.append(body.completed)
+
+    if not updates:
+        return task
+
+    patch_query = f"UPDATE todos SET {', '.join(updates)} WHERE id = %s RETURNING *;"
+    values.append(todo_id)
+    cursor.execute(patch_query, tuple(values))
+    return cursor.fetchone()
     
 @app.delete("/todo/{todo_id}", status_code=204)
-def delete_todo(todo_id: int):
-    global todo
-    task = next((t for t in todo if t["id"] == todo_id), None)
-    if task is None:
+def delete_todo(todo_id: int, cursor = Depends(get_db)):
+    cursor.execute("DELETE FROM todos WHERE id = %s RETURNING id;", (todo_id,))
+    deleted = cursor.fetchone()
+    if deleted is None:
         raise HTTPException(status_code = 404, detail = "todo not found")
-    todo = [t for t in todo if t["id"] != todo_id]
     return None
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
