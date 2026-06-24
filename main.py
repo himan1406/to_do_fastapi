@@ -1,167 +1,99 @@
-import psycopg2
 from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from typing import List
+ 
+from database import get_db
+from models import Todo
+from schemas import TodoCreate, TodoUpdate, TodoReplace, TodoResponse
+ 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
-from typing import Optional, Literal
-from psycopg2 import pool
-from psycopg2.extras import RealDictCursor
-import os
-from dotenv import load_dotenv
-from datetime import datetime, timezone
 
-load_dotenv()
+app = FastAPI(title="Todo API", version="2.0.0")
 
-db_pool = psycopg2.pool.SimpleConnectionPool(
-    1, 10,
-    user=os.environ.get("DB_USER"),
-    password=os.environ.get("DB_PASSWORD"),
-    host=os.environ.get("DB_HOST", "localhost"),
-    database=os.environ.get("DB_NAME", "todo-app")
-)
+@app.get("/todo", response_model = List[TodoResponse])
+def get_all(db: Session = Depends(get_db)):
+    return db.query(Todo).order_by(Todo.id).all()
 
-def get_db():
-    conn = db_pool.getconn()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            yield cursor
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        db_pool.putconn(conn)
-
-app = FastAPI()
-_id_counter = 1
-
-def next_id():
-    global _id_counter
-    current = _id_counter
-    _id_counter += 1
-    return current 
-
-class TodoCreate(BaseModel):
-    title: str = Field(min_length = 1, strip_whitespace = True)
-    description: Optional[str] = None
-    priority: Optional[Literal["low", "medium", "high"]] = "medium"
-
-class TodoUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    priority: Optional[Literal["low", "medium", "high"]] = None
-    completed: Optional[bool] = None
-
-class TodoReplace(BaseModel):
-    title: str
-    description: Optional[str] = ""
-    priority: Optional[Literal["low", "medium", "high"]] = "medium"
-    completed: Optional[bool] = False
-
-@app.get("/todo")
-def get_all(cursor = Depends(get_db)):
-    cursor.execute("SELECT * FROM todos ORDER BY id")
-    return cursor.fetchall()
-
-@app.get("/todo/{todo_id}")
-def get_todo_by_id(todo_id: int, cursor = Depends(get_db)):
-    cursor.execute("SELECT * FROM todos WHERE id = %s;", (todo_id,))
-    task = cursor.fetchone()
+@app.get("/todo/{todo_id}", response_model = TodoResponse)
+def get_todo_by_id(todo_id: int, db: Session = Depends(get_db)):
+    task = db.query(Todo).filter(Todo.id == todo_id).first()
     if task is None:
-        raise HTTPException(status_code = 404, detail = "todo not found")
+        raise HTTPException(status_code=404, detail = "todo not found")
     return task
 
-@app.post("/todo", status_code = 201)
-def create_todo(body: TodoCreate, cursor = Depends(get_db)):
-    cursor.execute("SELECT id FROM todos WHERE title = %s;", (body.title,))
-    find_title = cursor.fetchone()
+@app.post("/todo", status_code = 201, response_model = TodoResponse)
+def create_todo(body: TodoCreate, db: Session = Depends(get_db)):
+    find_title = db.query(Todo).filter(Todo.title == body.title).first()
     if find_title is not None:
-        raise HTTPException(status_code = 409, detail = "duplicate title")
-
-    post_query = """INSERT INTO todos (title, description, priority, created_at, completed) VALUES (%s, %s, %s, %s, %s) RETURNING *;"""
-    cursor.execute(post_query, (
-        body.title,
-        body.description,
-        body.priority,
-        datetime.now(timezone.utc),
-        False
-    ))
-    task = cursor.fetchone()
+        raise HTTPException(status_code = 409, detail = "Duplicate title")
+    
+    task = Todo(
+        title = body.title,
+        description = body.description,
+        priority = body.priority,
+        completed = False,
+    )
+    db.add(task)
+    db.flush()
+    db.refresh(task)
     return task
 
-@app.put("/todo/{todo_id}")
-def replace_todo(todo_id: int, body: TodoReplace, cursor = Depends(get_db)):
-    cursor.execute("SELECT * FROM todos WHERE id = %s;", (todo_id,))
-    task = cursor.fetchone()
+@app.put("/todo/{todo_id}", response_model = TodoResponse)
+def replace_todo(todo_id: int, body: TodoReplace, db: Session = Depends(get_db)):
+    task = db.query(Todo).filter(Todo.id == todo_id).first()
     if task is None:
         raise HTTPException(status_code = 404, detail = "todo not found")
-    if body.title is not None:
-        cursor.execute("SELECT id from todos where title = %s and id != %s;", (body.title, todo_id))
-        find_title = cursor.fetchone()
-        if find_title:
-            raise HTTPException(status_code = 409, detail = "duplicate title")
     
-    put_query = """UPDATE todos SET title = %s, description = %s, priority = %s, completed = %s WHERE id = %s RETURNING *;"""
+    find_title = db.query(Todo).filter(Todo.title == body.title, Todo.id != todo_id).first()
+    if find_title:
+        raise HTTPException(status_code = 409, detail = "Duplicate title")
 
-    cursor.execute(put_query, (
-        body.title,
-        body.description,
-        body.priority,
-        body.completed,
-        todo_id
-    ))
+    task.title = body.title
+    task.description = body.description
+    task.priority = body.priority
+    task.completed = body.completed
+    db.flush()
+    db.refresh(task)
+    return task
 
-    return cursor.fetchone()
-
-@app.patch("/todo/{todo_id}")
-def patch_todo(todo_id: int, body: TodoUpdate, cursor = Depends(get_db)):
-    cursor.execute("SELECT * FROM todos WHERE id = %s;", (todo_id,))
-    task = cursor.fetchone()
+@app.patch("/todo/{todo_id}", response_model = TodoResponse)
+def patch_todo(todo_id: int, body: TodoUpdate, db: Session = Depends(get_db)):
+    task = db.query(Todo).filter(Todo.id == todo_id).first()
     if task is None:
-        raise HTTPException(status_code = 404, detail= "todo not found")
+        raise HTTPException(status_code = 404, detail = "todo not found")
+    
     if body.title is not None:
-        cursor.execute("SELECT id from todos where title = %s and id != %s;", (body.title, todo_id))
-        find_title = cursor.fetchone()
+        find_title = db.query(Todo).filter(Todo.title == body.title, Todo.id != todo_id).first()
         if find_title:
-            raise HTTPException(status_code = 409, detail = "duplicate tile")
-
-    updates = []
-    values = []
-
+            raise HTTPException(status_code = 409, detail = "Duplicate title")
+    
     if body.title is not None:
-        updates.append("title = %s")
-        values.append(body.title)
+        task.title = body.title
     if body.description is not None:
-        updates.append("description = %s")
-        values.append(body.description)
+        task.description = body.description
     if body.priority is not None:
-        updates.append("priority = %s")
-        values.append(body.priority)
+        task.priority = body.priority
     if body.completed is not None:
-        updates.append("completed = %s")
-        values.append(body.completed)
-
-    if not updates:
-        return task
-
-    patch_query = f"UPDATE todos SET {', '.join(updates)} WHERE id = %s RETURNING *;"
-    values.append(todo_id)
-    cursor.execute(patch_query, tuple(values))
-    return cursor.fetchone()
+        task.completed = body.completed
+    
+    db.flush()
+    db.refresh(task)
+    return task
+    
     
 @app.delete("/todo/{todo_id}", status_code=204)
-def delete_todo(todo_id: int, cursor = Depends(get_db)):
-    cursor.execute("DELETE FROM todos WHERE id = %s RETURNING id;", (todo_id,))
-    deleted = cursor.fetchone()
-    if deleted is None:
+def delete_todo(todo_id: int, db: Session = Depends(get_db)):
+    task = db.query(Todo).filter(Todo.id == todo_id).first()
+    if task is None:
         raise HTTPException(status_code = 404, detail = "todo not found")
-    return None
 
+    db.delete(task)
+    return None
+    
 app.mount("/static", StaticFiles(directory="static"), name="static")
- 
- 
+
 @app.get("/")
 def serve_ui():
     return FileResponse("static/index.html")
-
 
