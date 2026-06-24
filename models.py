@@ -12,4 +12,5 @@ class Todo(Base):
     priority = Column(String, nullable = False, default = "medium")
     completed = Column(Boolean, nullable = False, default = False)
     created_at = Column(DateTime(timezone=True), server_default = func.now(), nullable = False)
+    due_date = Column(DateTime(timezone=True), nullable = True)
     

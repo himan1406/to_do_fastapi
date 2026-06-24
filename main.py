@@ -33,6 +33,7 @@ def create_todo(body: TodoCreate, db: Session = Depends(get_db)):
         description = body.description,
         priority = body.priority,
         completed = False,
+        due_date = body.due_date,
     )
     db.add(task)
     db.flush()
@@ -53,6 +54,7 @@ def replace_todo(todo_id: int, body: TodoReplace, db: Session = Depends(get_db))
     task.description = body.description
     task.priority = body.priority
     task.completed = body.completed
+    task.due_date = body.due_date
     db.flush()
     db.refresh(task)
     return task
@@ -76,6 +78,8 @@ def patch_todo(todo_id: int, body: TodoUpdate, db: Session = Depends(get_db)):
         task.priority = body.priority
     if body.completed is not None:
         task.completed = body.completed
+    if body.due_date is not None:
+        task.due_date = body.due_date
     
     db.flush()
     db.refresh(task)
