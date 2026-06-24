@@ -8,8 +8,7 @@ from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
-import time
-
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -84,7 +83,7 @@ def create_todo(body: TodoCreate, cursor = Depends(get_db)):
         body.title,
         body.description,
         body.priority,
-        time.time(),
+        datetime.now(timezone.utc),
         False
     ))
     task = cursor.fetchone()
