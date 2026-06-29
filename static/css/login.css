@@ -1,0 +1,49 @@
+/* ── login.css ── */
+
+body {
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+.right {
+  width: 420px;
+  flex-shrink: 0;
+  padding: 48px 40px;
+}
+
+.form-box { width: 100%; }
+
+.form-box h1 { margin-bottom: 32px; }
+
+.form-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 24px;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  color: var(--panel-muted);
+  cursor: pointer;
+}
+
+.remember input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--green-mid);
+  cursor: pointer;
+}
+
+.forgot {
+  font-size: 0.8rem;
+  color: var(--panel-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.forgot:hover { color: var(--green-mid); }

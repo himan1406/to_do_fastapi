@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+import re
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, Literal
 from datetime import datetime
 
@@ -30,5 +31,55 @@ class TodoResponse(BaseModel):
     completed: bool
     created_at: datetime
     due_date: Optional[datetime] = None
+    user_id: int
 
     model_config = {"from_attributes": True}
+
+
+# User schemas
+class UserCreate(BaseModel):
+    name: str = Field(min_length=1, strip_whitespace=True)
+    email: EmailStr
+    phone: str = Field(min_length=1, strip_whitespace=True)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not re.match(r'^\+\d{1,3}\d{10}$', v):
+            raise ValueError("Phone must include country code followed by exactly 10 digits (e.g., +919876543210)")
+        return v
+
+    password: str = Field(min_length=6)
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    phone: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    phone: str
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not re.match(r'^\+\d{1,3}\d{10}$', v):
+            raise ValueError("Phone must include country code followed by exactly 10 digits (e.g., +919876543210)")
+        return v
+
+    new_password: str = Field(min_length=6)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None

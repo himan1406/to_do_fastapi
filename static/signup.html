@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do — Sign up</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/shared.css" />
+  <link rel="stylesheet" href="/static/css/signup.css" />
+</head>
+<body>
+
+  <!-- Left panel -->
+  <div class="left">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <a href="/" class="logo">to<span>-do</span></a>
+
+    <div class="welcome">
+      <h2>Get<br/>Started.</h2>
+      <p>Create an account and start organising your day — one task at a time.</p>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="right">
+    <div class="form-box">
+      <h1>Sign up</h1>
+      <p class="subtitle">Create your account to manage your todos.</p>
+
+      <div class="field">
+        <label for="inp-name">Full name</label>
+        <div class="input-wrap">
+          <span class="input-icon">👤</span>
+          <input id="inp-name" type="text" placeholder="John Doe" autocomplete="name" />
+        </div>
+        <div class="error-msg" id="err-name">Please enter your full name.</div>
+      </div>
+
+      <div class="field">
+        <label for="inp-email">Email address</label>
+        <div class="input-wrap">
+          <span class="input-icon">✉️</span>
+          <input id="inp-email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div class="error-msg" id="err-email">Please enter a valid email address.</div>
+      </div>
+
+      <div class="field">
+        <label>Phone number</label>
+        <div class="phone-row">
+          <div class="country-wrap">
+            <select id="inp-country-code">
+              <option value="+91">🇮🇳 +91</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+61">🇦🇺 +61</option>
+              <option value="+971">🇦🇪 +971</option>
+              <option value="+65">🇸🇬 +65</option>
+              <option value="+49">🇩🇪 +49</option>
+              <option value="+33">🇫🇷 +33</option>
+            </select>
+          </div>
+          <div class="number-wrap">
+            <div class="input-wrap">
+              <span class="input-icon">📱</span>
+              <input id="inp-phone" type="tel" placeholder="9876543210" autocomplete="tel" />
+            </div>
+          </div>
+        </div>
+        <div class="error-msg" id="err-phone">Please enter a valid phone number.</div>
+      </div>
+
+      <div class="field">
+        <label for="inp-password">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input id="inp-password" type="password" placeholder="Min. 8 characters" autocomplete="new-password" />
+          <button class="toggle-pw" type="button" onclick="togglePw('inp-password', this)">👁</button>
+        </div>
+        <div class="error-msg" id="err-password">Password must be at least 8 characters.</div>
+      </div>
+
+      <div class="field">
+        <label for="inp-confirm">Confirm password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input id="inp-confirm" type="password" placeholder="Repeat your password" autocomplete="new-password" />
+          <button class="toggle-pw" type="button" onclick="togglePw('inp-confirm', this)">👁</button>
+        </div>
+        <div class="error-msg" id="err-confirm">Passwords do not match.</div>
+      </div>
+
+      <button class="btn-primary" onclick="handleSignup()">Create account</button>
+
+      <p class="terms">
+        By signing up you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+      </p>
+
+      <div class="or-divider">Or</div>
+
+      <a href="/static/login.html" class="btn-secondary">Log in instead</a>
+    </div>
+  </div>
+
+  <script src="/static/js/signup.js"></script>
+</body>
+</html>

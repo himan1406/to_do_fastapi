@@ -1,0 +1,58 @@
+/* ── signup.css ── */
+
+body {
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+.right {
+  width: 460px;
+  flex-shrink: 0;
+  padding: 40px;
+}
+
+.form-box { width: 100%; }
+
+.form-box h1 { margin-bottom: 6px; }
+
+.subtitle {
+  font-size: 0.85rem;
+  color: var(--panel-muted);
+  margin-bottom: 24px;
+}
+
+/* Phone row */
+.phone-row {
+  display: flex;
+  gap: 8px;
+}
+
+.phone-row .country-wrap {
+  position: relative;
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.phone-row .country-wrap select {
+  padding-left: 10px;
+  font-size: 0.82rem;
+}
+
+.phone-row .number-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.terms {
+  font-size: 0.73rem;
+  color: var(--panel-muted);
+  text-align: center;
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+.terms a {
+  color: var(--green-mid);
+  text-decoration: none;
+}
