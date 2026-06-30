@@ -23,18 +23,17 @@ function handleLogin() {
     document.getElementById('err-email').classList.add('show');
     valid = false;
   }
-
   if (!password) {
     document.getElementById('err-password').classList.add('show');
     valid = false;
   }
-
   if (!valid) return;
 
   fetch('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
+    credentials: 'same-origin',   // browser stores the httpOnly session cookie from the response
+    body: JSON.stringify({ email, password }),
   })
   .then(async r => {
     if (!r.ok) {
@@ -43,8 +42,7 @@ function handleLogin() {
     }
     return r.json();
   })
-  .then(data => {
-    localStorage.setItem('token', data.access_token);
+  .then(() => {
     window.location.href = '/';
   })
   .catch(err => {

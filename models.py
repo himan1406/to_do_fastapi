@@ -15,19 +15,32 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     todos = relationship("Todo", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token = Column(String, nullable=False, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    user_agent = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="sessions")
 
 
 class Todo(Base):
     __tablename__ = "todos"
 
-    id = Column(Integer, primary_key = True, index = True)
-    title = Column(String, nullable = False)
-    description = Column(String, nullable = False)
-    priority = Column(String, nullable = False, default = "medium")
-    completed = Column(Boolean, nullable = False, default = False)
-    created_at = Column(DateTime(timezone=True), server_default = func.now(), nullable = False)
-    due_date = Column(DateTime(timezone=True), nullable = True)
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    priority = Column(String, nullable=False, default="medium")
+    completed = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    due_date = Column(DateTime(timezone=True), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     user = relationship("User", back_populates="todos")
-    

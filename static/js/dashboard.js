@@ -1,42 +1,50 @@
 // dashboard.js
 
-const token = localStorage.getItem('token');
-if (!token) {
-  window.location.href = '/static/login.html';
-}
-
 const API = '/todo';
 let todos = [];
 let activeFilter = 'all';
 let editingId = null;
 
-// ── API helpers ──────────────────────────────────────────────────────────────
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${localStorage.getItem('token')}`
-});
+// ── API helpers ───────────────────────────────────────────────────────────────
+// No Authorization header needed — the httpOnly session cookie is sent
+// automatically by the browser with credentials: 'same-origin'
+
+const handleUnauth = () => {
+  window.location.href = '/static/login.html';
+};
 
 const handleResponse = async (r) => {
   if (r.status === 401) {
-    localStorage.removeItem('token');
-    window.location.href = '/static/login.html';
+    handleUnauth();
     return;
   }
   return r.json();
 };
 
+const fetchOpts = (method = 'GET', body = null) => ({
+  method,
+  credentials: 'same-origin',
+  headers: body ? { 'Content-Type': 'application/json' } : {},
+  ...(body ? { body: JSON.stringify(body) } : {}),
+});
+
 const api = {
-  getAll:  ()         => fetch(API, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(handleResponse),
-  post:    (body)     => fetch(API, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
-  patch:   (id, body) => fetch(`${API}/${id}`, { method: 'PATCH', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
-  put:     (id, body) => fetch(`${API}/${id}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
-  delete:  (id)       => fetch(`${API}/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => {
-    if (r.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/static/login.html';
-    }
+  getAll:  ()         => fetch(API, fetchOpts()).then(handleResponse),
+  post:    (body)     => fetch(API, fetchOpts('POST', body)).then(handleResponse),
+  patch:   (id, body) => fetch(`${API}/${id}`, fetchOpts('PATCH', body)).then(handleResponse),
+  put:     (id, body) => fetch(`${API}/${id}`, fetchOpts('PUT', body)).then(handleResponse),
+  delete:  (id)       => fetch(`${API}/${id}`, fetchOpts('DELETE')).then(r => {
+    if (r.status === 401) { handleUnauth(); return; }
   }),
 };
+
+// ── Auth check ────────────────────────────────────────────────────────────────
+async function checkAuth() {
+  const r = await fetch('/auth/me', { credentials: 'same-origin' });
+  if (r.status === 401) {
+    handleUnauth();
+  }
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 let toastTimer;
@@ -50,7 +58,7 @@ function toast(msg) {
 
 // ── Escape HTML ───────────────────────────────────────────────────────────────
 function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -99,7 +107,7 @@ function render() {
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function load() {
-  todos = await api.getAll();
+  todos = await api.getAll() || [];
   render();
 }
 
@@ -110,12 +118,12 @@ document.getElementById('btn-add').addEventListener('click', async () => {
 
   const body = {
     title,
-    description: document.getElementById('inp-desc').value.trim(),
+    description: document.getElementById('inp-desc').value.trim() || null,
     priority:    document.getElementById('inp-priority').value,
   };
 
   const created = await api.post(body);
-  if (created.detail) { toast(created.detail); return; }
+  if (!created || created.detail) { toast(created?.detail || 'Error creating task.'); return; }
 
   todos.unshift(created);
   render();
@@ -127,25 +135,22 @@ document.getElementById('btn-add').addEventListener('click', async () => {
 
 // ── List interactions ─────────────────────────────────────────────────────────
 document.getElementById('todo-list').addEventListener('click', async e => {
-  // Toggle done (PATCH)
   if (e.target.classList.contains('todo-check')) {
     const id   = +e.target.dataset.id;
     const todo = todos.find(t => t.id === id);
     const updated = await api.patch(id, { completed: !todo.completed });
-    if (updated.detail) { toast(updated.detail); return; }
+    if (!updated || updated.detail) { toast(updated?.detail || 'Error.'); return; }
     Object.assign(todo, updated);
     render();
     toast(updated.completed ? 'Marked done.' : 'Marked pending.');
     return;
   }
 
-  // Open edit
   if (e.target.classList.contains('edit-btn')) {
     openEdit(+e.target.dataset.id);
     return;
   }
 
-  // Delete (DELETE)
   if (e.target.classList.contains('del')) {
     const id = +e.target.dataset.id;
     await api.delete(id);
@@ -179,14 +184,14 @@ document.getElementById('btn-save-edit').addEventListener('click', async () => {
   const todo = todos.find(t => t.id === editingId);
   const body = {
     title:       document.getElementById('edit-title').value.trim(),
-    description: document.getElementById('edit-desc').value.trim(),
+    description: document.getElementById('edit-desc').value.trim() || null,
     completed:   todo.completed,
     priority:    document.getElementById('edit-priority').value,
   };
   if (!body.title) { toast('Title is required.'); return; }
 
   const updated = await api.put(editingId, body);
-  if (updated.detail) { toast(updated.detail); return; }
+  if (!updated || updated.detail) { toast(updated?.detail || 'Error.'); return; }
   Object.assign(todo, updated);
   render();
   closeEdit();
@@ -204,8 +209,8 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 });
 
 // ── Logout ────────────────────────────────────────────────────────────────────
-document.getElementById('btn-logout').addEventListener('click', () => {
-  localStorage.removeItem('token');
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
   window.location.href = '/static/login.html';
 });
 
@@ -214,4 +219,5 @@ document.getElementById('inp-title').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-add').click();
 });
 
-load();
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkAuth().then(load);

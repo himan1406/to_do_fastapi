@@ -3,21 +3,22 @@ from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, Literal
 from datetime import datetime
 
+
 class TodoCreate(BaseModel):
-    title: str = Field(min_length = 1, strip_whitespace = True)
+    title: str = Field(min_length=1, strip_whitespace=True)
     description: Optional[str] = None
     priority: Optional[Literal["low", "medium", "high"]] = "medium"
     due_date: Optional[datetime] = None
 
 class TodoUpdate(BaseModel):
-    title: Optional[str] = Field(default = None, min_length = 1)
+    title: Optional[str] = Field(default=None, min_length=1)
     description: Optional[str] = None
     priority: Optional[Literal["low", "medium", "high"]] = None
     completed: Optional[bool] = None
     due_date: Optional[datetime] = None
 
 class TodoReplace(BaseModel):
-    title: str = Field(min_length = 1, strip_whitespace = True)
+    title: str = Field(min_length=1, strip_whitespace=True)
     description: Optional[str] = None
     priority: Optional[Literal["low", "medium", "high"]] = "medium"
     completed: bool = False
@@ -36,7 +37,8 @@ class TodoResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# User schemas
+# ── User schemas ─────────────────────────────────────────────────────────────
+
 class UserCreate(BaseModel):
     name: str = Field(min_length=1, strip_whitespace=True)
     email: EmailStr
@@ -46,7 +48,9 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_phone(cls, v: str) -> str:
         if not re.match(r'^\+\d{1,3}\d{10}$', v):
-            raise ValueError("Phone must include country code followed by exactly 10 digits (e.g., +919876543210)")
+            raise ValueError(
+                "Phone must include country code followed by exactly 10 digits (e.g., +919876543210)"
+            )
         return v
 
     password: str = Field(min_length=6)
@@ -72,14 +76,9 @@ class ForgotPasswordRequest(BaseModel):
     @classmethod
     def validate_phone(cls, v: str) -> str:
         if not re.match(r'^\+\d{1,3}\d{10}$', v):
-            raise ValueError("Phone must include country code followed by exactly 10 digits (e.g., +919876543210)")
+            raise ValueError(
+                "Phone must include country code followed by exactly 10 digits (e.g., +919876543210)"
+            )
         return v
 
     new_password: str = Field(min_length=6)
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    email: Optional[str] = None

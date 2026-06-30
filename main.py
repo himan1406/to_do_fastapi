@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 
 from routers import todo, auth
 
-app = FastAPI(title="Todo API", version="2.0.0")
+app = FastAPI(title="Todo API", version="3.0.0")
 
 # Include routers
 app.include_router(auth.router)
